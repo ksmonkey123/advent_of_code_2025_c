@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 4.1)
+project(aoc C)
+
+set(CMAKE_C_STANDARD 11)
+
+#file(GLOB_RECURSE SHARED src/shared/*.c)
+
+add_executable(day01 src/day_01.c)
+add_executable(day02 src/day_02.c)
