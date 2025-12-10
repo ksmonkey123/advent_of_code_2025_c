@@ -1,21 +1,9 @@
 #include <stdio.h>
-#include <stdlib.h>
-
-typedef struct {
-    char start[32];
-    char end[32];
-    int startLength;
-    int endLength;
-} RawRange;
 
 typedef struct {
     long start;
     long end;
-    long startPrefix;
-    long endPrefix;
-    long prefixMultiplier;
-} Part1Range;
-
+} NumberRange;
 
 long parseNumber(const char *buffer, const int length) {
     long sum = 0;
@@ -28,65 +16,80 @@ long parseNumber(const char *buffer, const int length) {
     return sum;
 }
 
-long exp(int base, int exponent) {
-    long result = 1;
-    for (int i = 0; i < exponent; i++) {
-        result *= base;
+int numberLength(long number) {
+    int x = 0;
+    while (number > 0) {
+        x++;
+        number /= 10;
     }
-    return result;
+    return x;
 }
 
-Part1Range part1_preprocess(const RawRange *range) {
-    Part1Range result;
+void numberToString(long number, char *buffer) {
+    const int l = numberLength(number);
+    buffer[l] = '\0';
 
-    result.start = parseNumber(range->start, range->startLength);
-    result.end = parseNumber(range->end, range->endLength);
-    result.startPrefix = parseNumber(range->start, range->startLength / 2);
-    result.endPrefix = parseNumber(range->end, range->endLength / 2);
-    result.prefixMultiplier = exp(10, (range->startLength - (range->startLength / 2)));
-
-    if (range->startLength % 2 != 0) {
-        // start is odd, we can directly raise to the start of the next 'even' block.
-        result.startPrefix = exp(10, range->startLength / 2);
+    for (int i = 0; i < l; i++) {
+        buffer[l - 1 - i] = (char) ((number % 10) + '0');
+        number /= 10;
     }
-    if (range -> endLength % 2 != 0) {
-        // end is odd, we can cut the range to the end of the previous 'even' block.
-        result.endPrefix = exp(10, range->endLength / 2) - 1;
-    }
-
-    return result;
 }
 
-long part1_process_range(const RawRange *range) {
-    if (range->endLength - range->startLength > 1) {
-        // we  don't support that yet
-        exit(-1);
-    }
-
-    if (range->startLength == range->endLength && range->startLength % 2 == 1) {
-        // entirely odd ranges within the same magnitude must always be empty
+int isRepeating(long number, int times) {
+    const int l = numberLength(number);
+    if (l % times != 0) {
+        // cannot be repeating if length is not a multiple of 'times'
         return 0;
     }
 
-    const Part1Range r = part1_preprocess(range);
+    char buffer[64];
+    numberToString(number, buffer);
+    for (int i = 1; i < times; i++) {
+        for (int j = 0; j < l / times; j++) {
+            if (buffer[j] != buffer[j + i * (l / times)]) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
 
+long repeated(long prefix, long multiplier, int repeats) {
+    long sum = 0;
+    for (int i = 0; i < repeats; i++) {
+        sum *= multiplier;
+        sum += prefix;
+    }
+    return sum;
+}
+
+long part1(const int nranges, const NumberRange *ranges) {
     long sum = 0;
 
-    for (long i = r.startPrefix; i <= r.endPrefix; i++) {
-        long candidate = i * r.prefixMultiplier + i;
-        if (candidate >= r.start && candidate <= r.end) {
-            sum += candidate;
+    for (int i = 0; i < nranges; i++) {
+        for (long j = ranges[i].start; j <= ranges[i].end; j++) {
+            if (isRepeating(j, 2) != 0) {
+                sum += j;
+            }
         }
     }
 
     return sum;
 }
 
-long part1(const int nranges, const RawRange *ranges) {
+long part2(const int nranges, const NumberRange *ranges) {
     long sum = 0;
 
     for (int i = 0; i < nranges; i++) {
-        sum += part1_process_range(ranges + i);
+        for (long j = ranges[i].start; j <= ranges[i].end; j++) {
+            int l = numberLength(j);
+            for (int t = 2; t <= l; t++) {
+                if (isRepeating(j, t) != 0) {
+                    sum += j;
+                    break;
+                }
+            }
+        }
     }
 
     return sum;
@@ -108,17 +111,19 @@ int main() {
     }
 
     // read ranges
-    RawRange ranges[serials];
+    NumberRange ranges[serials];
     {
         for (int i = 0; i < serials; i++) {
-            ranges[i].startLength = 0;
-            ranges[i].endLength = 0;
+            int startLength = 0;
+            int endLength = 0;
+            char start[20];
+            char end[20];
 
             int c = 0;
             // read start
             while ((c = fgetc(fp)) != EOF) {
                 if (c != '-') {
-                    ranges[i].start[ranges[i].startLength++] = (char) c;
+                    start[startLength++] = (char) c;
                 } else {
                     break;
                 }
@@ -126,18 +131,22 @@ int main() {
             // read end;
             while ((c = fgetc(fp)) != EOF) {
                 if (c != ',') {
-                    ranges[i].end[ranges[i].endLength++] = (char) c;
+                    end[endLength++] = (char) c;
                 } else {
                     break;
                 }
             }
             // null-terminate strings for safety
-            ranges[i].start[ranges[i].startLength] = '\0';
-            ranges[i].end[ranges[i].endLength] = '\0';
+            start[startLength] = '\0';
+            end[endLength] = '\0';
+
+            ranges[i].start = parseNumber(start, startLength);
+            ranges[i].end = parseNumber(end, endLength);
         }
 
         fclose(fp);
     }
 
     printf("part 1: %ld\n", part1(serials, ranges));
+    printf("part 2: %ld\n", part2(serials, ranges));
 }
