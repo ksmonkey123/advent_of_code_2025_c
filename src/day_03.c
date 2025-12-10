@@ -5,7 +5,6 @@ int positionOf(const char query, const char *buffer) {
         if (buffer[i] == query) {
             return i;
         }
-        i++;
     }
     return -1;
 }
