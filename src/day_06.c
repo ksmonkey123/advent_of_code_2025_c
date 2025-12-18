@@ -21,7 +21,22 @@ void parseSubgridPart1(struct calculation *dest, const struct chargrid *src) {
     dest->operation = chargrid_get(src, 0, src->height - 1);
 }
 
-long part1(const struct chargrid *grid) {
+void parseSubgridPart2(struct calculation *dest, const struct chargrid *src) {
+    dest->numbersCount = 0;
+    for (int x = 0; x < src->width; x++) {
+        long value = 0;
+        for (int y = 0; y < src->height - 1; y++) {
+            char c = chargrid_get(src, x, y);
+            if (c != ' ') {
+                value = 10 * value + (c - '0');
+            }
+        }
+        dest->numbers[dest->numbersCount++] = value;
+    }
+    dest->operation = chargrid_get(src, 0, src->height - 1);
+}
+
+long doWork(const struct chargrid *grid, void (*parser)(struct calculation *, const struct chargrid *)) {
     long grand_total = 0;
     int startX = 0;
     struct chargrid currentCalculation = {0};
@@ -43,7 +58,7 @@ long part1(const struct chargrid *grid) {
         startX = x + 1;
 
         struct calculation calculation = {0};
-        parseSubgridPart1(&calculation, &currentCalculation);
+        parser(&calculation, &currentCalculation);
 
         long acc = calculation.operation == '+' ? 0 : 1;
         for (int i = 0; i < calculation.numbersCount; i++) {
@@ -66,7 +81,8 @@ int main() {
     chargrid_init(&grid, fd);
     fclose(fd);
 
-    printf("part 1: %ld", part1(&grid));
+    printf("part 1: %ld\n", doWork(&grid, parseSubgridPart1));
+    printf("part 2: %ld\n", doWork(&grid, parseSubgridPart2));
 
     chargrid_free(&grid);
 }
