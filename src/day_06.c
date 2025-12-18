@@ -1,138 +1,72 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "utils/vectors.h"
-#include "utils/linked_list.h"
+#include "utils/chargrid.h"
 
 struct calculation {
-    struct VecLong numbers;
     char operation;
+    int numbersCount;
+    long numbers[10];
 };
 
-enum TokenType { NUMBER, OPERATION, END_OF_LINE };
-
-struct Token {
-    enum TokenType type;
-
-    union {
-        long number;
-        char operation;
-    };
-};
-
-struct Token tokenize(const char *buffer, int length) {
-    if (buffer[0] == '+' || buffer[0] == '*') {
-        return (struct Token){.type = OPERATION, .operation = buffer[0]};
-    }
-    if (buffer[0] >= '0' && buffer[0] <= '9') {
-        // parse number
-        long number = 0;
-        for (int i = 0; i < length; i++) {
-            number = number * 10 + (buffer[i] - '0');
-        }
-        return (struct Token){.type = NUMBER, .number = number};
-    }
-    printf("unable to parse token");
-    exit(-1);
-}
-
-/**
- * read and tokenize the file.
- *
- * @return the string "array". caller owns the char** as well as all contained char*
- */
-struct LinkedList readFile(FILE *fd) {
-    struct LinkedList tokens = {0};
-
-    int bufferUsed = 0;
-    char buffer[32];
-
-    int c = 0;
-    while ((c = fgetc(fd)) != EOF) {
-        if (c != ' ' && c != '\n') {
-            buffer[bufferUsed++] = (char) c;
-        } else {
-            if (bufferUsed > 0) {
-                // word is done
-                struct Token *token = malloc(sizeof(struct Token));
-                *token = tokenize(buffer, bufferUsed);
-                bufferUsed = 0;
-                ll_append(&tokens, token);
-            }
-
-            if (c == '\n') {
-                struct Token *token = malloc(sizeof(struct Token));
-                token->type = END_OF_LINE;
-                ll_append(&tokens, token);
+void parseSubgridPart1(struct calculation *dest, const struct chargrid *src) {
+    dest->numbersCount = 0;
+    for (int y = 0; y < src->height - 1; y++) {
+        long value = 0;
+        for (int x = 0; x < src->width; x++) {
+            char c = chargrid_get(src, x, y);
+            if (c != ' ') {
+                value = 10 * value + (c - '0');
             }
         }
+        dest->numbers[dest->numbersCount++] = value;
     }
-
-    return tokens;
+    dest->operation = chargrid_get(src, 0, src->height - 1);
 }
 
+long part1(const struct chargrid *grid) {
+    long grand_total = 0;
+    int startX = 0;
+    struct chargrid currentCalculation = {0};
+    for (int x = 0; x <= grid->width; x++) {
+        // check if this column is a separator
+        int separator = 1;
+        if (x < grid->width) {
+            for (int y = 0; y < grid->height; y++) {
+                if (chargrid_get(grid, x, y) != ' ') {
+                    separator = 0;
+                    break;
+                }
+            }
+        }
+        if (!separator) {
+            continue;
+        }
+        chargrid_subgrid(&currentCalculation, grid, startX, 0, x - startX, grid->height);
+        startX = x + 1;
+
+        struct calculation calculation = {0};
+        parseSubgridPart1(&calculation, &currentCalculation);
+
+        long acc = calculation.operation == '+' ? 0 : 1;
+        for (int i = 0; i < calculation.numbersCount; i++) {
+            if (calculation.operation == '+') {
+                acc += calculation.numbers[i];
+            } else {
+                acc *= calculation.numbers[i];
+            }
+        }
+
+        grand_total += acc;
+    }
+    chargrid_free(&currentCalculation);
+    return grand_total;
+}
 
 int main() {
     FILE *fd = fopen("../inputs/day06.txt", "r");
+    struct chargrid grid = {0};
+    chargrid_init(&grid, fd);
+    fclose(fd);
 
-    struct LinkedList tokens = readFile(fd);
+    printf("part 1: %ld", part1(&grid));
 
-    struct ll_node *next_token = tokens.head;
-
-    int calculation_count = 0;
-    while (next_token != NULL) {
-        if (((struct Token *) next_token->data)->type != END_OF_LINE) {
-            calculation_count++;
-            next_token = next_token->next;
-        } else {
-            break;
-        }
-    }
-
-    struct calculation calculations[calculation_count];
-    for (int i = 0; i < calculation_count; i++) {
-        calculations[i] = (struct calculation){0};
-    }
-
-    int cursor = 0;
-    next_token = tokens.head;
-    while (next_token != NULL) {
-        struct Token *token = next_token->data;
-        if (token->type == END_OF_LINE) {
-            cursor = 0;
-        } else if (token->type == OPERATION) {
-            calculations[cursor++].operation = token->operation;
-        } else {
-            vec_long_add(&calculations[cursor++].numbers, token->number);
-        }
-        next_token = next_token->next;
-    }
-
-    ll_destroy(&tokens);
-
-    long grand_total = 0;
-    for (int i = 0; i < calculation_count; i++) {
-        struct calculation calc = calculations[i];
-
-        long local_result = 0;
-        for (int j = 0; j < calc.numbers.size; j++) {
-            if (calc.operation == '+') {
-                local_result += calc.numbers.data[j];
-            } else {
-                if (local_result == 0) {
-                    local_result = 1;
-                }
-                local_result *= calc.numbers.data[j];
-            }
-        }
-
-        grand_total += local_result;
-    }
-
-    printf("part 1: %ld", grand_total);
-
-    for (int i = 0; i < calculation_count; i++) {
-        struct calculation calc = calculations[i];
-        vec_long_clear(&calc.numbers);
-    }
+    chargrid_free(&grid);
 }
