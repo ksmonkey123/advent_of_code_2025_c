@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "utils/chargrid.h"
 
 struct calculation {
@@ -76,10 +78,7 @@ long doWork(const struct chargrid *grid, void (*parser)(struct calculation *, co
 }
 
 int main() {
-    FILE *fd = fopen("../inputs/day06.txt", "r");
-    struct chargrid grid = {0};
-    chargrid_init(&grid, fd);
-    fclose(fd);
+    struct chargrid grid = chargrid_load("../inputs/day06.txt");
 
     printf("part 1: %ld\n", doWork(&grid, parseSubgridPart1));
     printf("part 2: %ld\n", doWork(&grid, parseSubgridPart2));

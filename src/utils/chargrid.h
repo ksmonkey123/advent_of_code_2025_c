@@ -1,6 +1,5 @@
 #ifndef AOC_CHARGRID_H
 #define AOC_CHARGRID_H
-#include <stdio.h>
 
 struct chargrid {
     int width;
@@ -12,7 +11,7 @@ char chargrid_get(const struct chargrid *grid, int x, int y);
 
 void chargrid_set(struct chargrid *grid, int x, int y, char value);
 
-void chargrid_init(struct chargrid *grid, FILE *fd);
+struct chargrid chargrid_load(const char *filename);
 
 void chargrid_free(struct chargrid *grid);
 

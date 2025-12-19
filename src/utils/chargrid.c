@@ -1,13 +1,12 @@
-//
-// Created by Andreas on 18.12.2025.
-//
-
 #include "chargrid.h"
-
+#include <stdio.h>
 #include <stdlib.h>
 
 char chargrid_get(const struct chargrid *grid, int x, int y) {
-    return grid->data[x + y * grid->width];
+    if (x >= 0 && x < grid->width && y >= 0 && y < grid->height) {
+        return grid->data[x + y * grid->width];
+    }
+    return '\0';
 }
 
 static int max(int a, int b) {
@@ -42,7 +41,8 @@ void chargrid_set(struct chargrid *grid, int x, int y, char value) {
     grid->data[x + y * grid->width] = value;
 }
 
-void chargrid_init(struct chargrid *grid, FILE *fd) {
+static void chargrid_init(struct chargrid *grid, FILE *fd) {
+    chargrid_free(grid);
     int x = 0, y = 0;
 
     int c = 0;
@@ -54,6 +54,14 @@ void chargrid_init(struct chargrid *grid, FILE *fd) {
             y++;
         }
     }
+}
+
+struct chargrid chargrid_load(const char *filename) {
+    struct chargrid grid = {0};
+    FILE *fd = fopen(filename, "r");
+    chargrid_init(&grid, fd);
+    fclose(fd);
+    return grid;
 }
 
 void chargrid_free(struct chargrid *grid) {
